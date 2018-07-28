@@ -10,7 +10,6 @@
     2015 - Luar was here <cyberplant@gmail.com>
 
 """
-
 import string
 import re
 
@@ -23,6 +22,7 @@ UpperCase = string.ascii_uppercase
 Digits = string.digits
 Symbols = string.punctuation
 
+HasLowercase = re.compile("[a-z]")
 HasCaps = re.compile("[A-Z]")
 HasNumerals = re.compile("[0-9]")
 HasSymbols = re.compile(r"[%s]" % re.escape(Symbols))
@@ -30,11 +30,25 @@ HasAmbiguous = re.compile("[B8G6I1l|0OQDS5Z2]")
 
 
 def replaceRandomChar(letter, word, pos=None):
-    if not pos:
+    """Replace a character in the password with another.
+
+    @param letter: The character to insert into the password
+    @param word: The password to insert the letter into
+    @param pos: The position the letter shall be inserted at (may be a
+                position or a list of positions to choose from randomly)
+    """
+    if isinstance(pos, list) and len(pos) > 0:
+        pos = choice(pos)
+    elif pos is None:
         pos = randint(0, len(word)-1)
     word = list(word)
     word[pos] = letter
     return "".join(word)
+
+
+def findAllChars(word, pattern):
+    """Return a list of positions in the string where the pattern matches."""
+    return [m.start() for m in re.finditer(pattern, word)]
 
 
 def pwgen(pw_length=20, num_pw=1, no_numerals=False, no_capitalize=False,
@@ -76,13 +90,25 @@ def pwgen(pw_length=20, num_pw=1, no_numerals=False, no_capitalize=False,
     while len(passwds) < int(num_pw):
         passwd = "".join(choice(letters) for x in range(pw_length))
         if capitalize and not HasCaps.search(passwd):
-            passwd = replaceRandomChar(choice(UpperCase), passwd)
+            passwd = replaceRandomChar(
+                choice(UpperCase), passwd,
+                pos=findAllChars(passwd, HasLowercase)
+            )
         if numerals and not HasNumerals.search(passwd):
-            passwd = replaceRandomChar(choice(Digits), passwd)
+            passwd = replaceRandomChar(
+                choice(Digits), passwd,
+                pos=findAllChars(passwd, HasLowercase)
+            )
         if symbols and not HasSymbols.search(passwd):
-            passwd = replaceRandomChar(choice(Symbols), passwd)
-        if no_ambiguous and HasAmbiguous.search(passwd):
-            continue
+            passwd = replaceRandomChar(
+                choice(Symbols), passwd,
+                pos=findAllChars(passwd, HasLowercase)
+            )
+        while no_ambiguous and HasAmbiguous.search(passwd):
+            passwd = replaceRandomChar(
+                choice(letters), passwd,
+                pos=findAllChars(passwd, HasAmbiguous)
+            )
         passwds.append(passwd)
 
     if len(passwds) == 1:
